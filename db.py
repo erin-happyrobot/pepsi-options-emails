@@ -202,22 +202,22 @@ def get_options_with_available_loads(org_id: str) -> List[Dict[str, Any]]:
             if carriers_result.data:
                 carriers_map = {carrier["id"]: carrier for carrier in carriers_result.data}
 
-        # # Query carrier contacts for phone numbers
-        # carrier_contacts_map = {}
-        # if carrier_ids:
-        #     carrier_contacts_phone_result = (
-        #         supabase.table("carrier_contacts")
-        #         .select("carrier_id, phone")
-        #         .in_("carrier_id", carrier_ids)
-        #         .execute()
-        #     )
+        # Query carrier contacts for phone numbers
+        carrier_contacts_map = {}
+        if carrier_ids:
+            carrier_contacts_phone_result = (
+                supabase.table("carrier_contacts")
+                .select("carrier_id, phone")
+                .in_("carrier_id", carrier_ids)
+                .execute()
+            )
             
             # Create a map: carrier_id -> phone
-            # if carrier_contacts_phone_result.data:
-            #     carrier_contacts_map = {
-            #         contact["carrier_id"]: contact.get("phone") 
-            #         for contact in carrier_contacts_phone_result.data
-            #     }
+            if carrier_contacts_phone_result.data:
+                carrier_contacts_map = {
+                    contact["carrier_id"]: contact.get("phone") 
+                    for contact in carrier_contacts_phone_result.data
+                }
         
         # Attach enriched load data and carrier info to each option
         options_list = []
@@ -264,8 +264,8 @@ def get_options_with_available_loads(org_id: str) -> List[Dict[str, Any]]:
                     carrier_dot = carrier.get("dot_number")
                 
                 # Get phone number from carrier_contacts table
-                # phone_number = carrier_contacts_map.get(carrier_id) if carrier_id else None
-                phone_number = option.get("phone")
+                phone_number = carrier_contacts_map.get(carrier_id) if carrier_id else None
+                # phone_number = option.get("phone")
                 
                 # Attach enriched load data to each option
                 option["loads"] = {
