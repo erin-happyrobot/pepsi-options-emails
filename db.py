@@ -223,6 +223,7 @@ def get_options_with_available_loads(org_id: str) -> List[Dict[str, Any]]:
         options_list = []
         for option in options_result.data:
             load_id = option.get("load_id")
+            created_at = option.get("created_at")
             if load_id in loads_map:
                 load = loads_map[load_id]
                 
@@ -275,7 +276,7 @@ def get_options_with_available_loads(org_id: str) -> List[Dict[str, Any]]:
                     "custom_load_id": load.get("custom_load_id"),
                     "pickup_date_close": load.get("pickup_date_close"),
                     "origin": origin,
-                    "destination": destination
+                    "destination": destination,
                 }
                 
                 # Attach carrier info directly to option for easier access
@@ -283,7 +284,7 @@ def get_options_with_available_loads(org_id: str) -> List[Dict[str, Any]]:
                 option["carrier_mc"] = carrier_mc
                 option["carrier_dot"] = carrier_dot
                 option["phone_number"] = phone_number
-                
+                option["created_at"] = created_at
                 options_list.append(option)
         
         return options_list
