@@ -75,6 +75,46 @@ def get_timestamp_for_sort(option: Dict[str, Any]) -> datetime:
         return datetime.min.replace(tzinfo=timezone.utc)
 
 
+def format_phone_number(phone: Any) -> str:
+    """
+    Format a phone number to a readable format: (XXX) XXX-XXXX.
+    
+    Args:
+        phone: Phone number as string, number, or None
+        
+    Returns:
+        Formatted phone number string or 'N/A' if invalid
+    """
+    if phone is None:
+        return 'N/A'
+    
+    # Convert to string and remove all non-digit characters
+    phone_str = str(phone).strip()
+    if not phone_str or phone_str == 'N/A':
+        return 'N/A'
+    
+    # Extract only digits
+    digits = ''.join(filter(str.isdigit, phone_str))
+    
+    # Handle different cases
+    if len(digits) == 10:
+        # Standard 10-digit US number: (925) 989-8099
+        return f"({digits[0:3]}) {digits[3:6]}-{digits[6:10]}"
+    elif len(digits) == 11 and digits[0] == '1':
+        # 11-digit number starting with 1 (US country code): remove leading 1
+        return f"({digits[1:4]}) {digits[4:7]}-{digits[7:11]}"
+    elif len(digits) > 0:
+        # If it doesn't match standard formats, return cleaned version
+        # but try to format if it's close
+        if len(digits) >= 10:
+            return f"({digits[0:3]}) {digits[3:6]}-{digits[6:10]}"
+        else:
+            # Return as-is if too short
+            return phone_str
+    else:
+        return 'N/A'
+
+
 def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
     """
     Format options data into an HTML email, grouped by load.
@@ -210,7 +250,8 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
                 carrier_mc = option.get('carrier_mc', 'N/A') or 'N/A'
                 carrier_dot = option.get('carrier_dot', 'N/A') or 'N/A'
                 offered_rate = option.get('offered_rate', 'N/A')
-                phone_number = option.get('phone_number', 'N/A') or 'N/A'
+                phone_number_raw = option.get('phone_number', 'N/A') or 'N/A'
+                phone_number = format_phone_number(phone_number_raw)
                 created_at_raw = option.get('created_at')
                 option_logged_time = format_timestamp(created_at_raw)
                 
@@ -306,7 +347,8 @@ Carrier MC        Carrier DOT      Offer Amount     Phone Number      Option Log
                 carrier_mc = option.get('carrier_mc', 'N/A') or 'N/A'
                 carrier_dot = option.get('carrier_dot', 'N/A') or 'N/A'
                 offered_rate = option.get('offered_rate', 'N/A')
-                phone_number = option.get('phone_number', 'N/A') or 'N/A'
+                phone_number_raw = option.get('phone_number', 'N/A') or 'N/A'
+                phone_number = format_phone_number(phone_number_raw)
                 created_at_raw = option.get('created_at')
                 option_logged_time = format_timestamp(created_at_raw)
                 
