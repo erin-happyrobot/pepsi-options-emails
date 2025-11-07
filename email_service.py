@@ -48,6 +48,33 @@ def format_timestamp(timestamp: Any) -> str:
         return 'N/A'
 
 
+def get_timestamp_for_sort(option: Dict[str, Any]) -> datetime:
+    """
+    Extract and parse created_at timestamp from an option for sorting purposes.
+    
+    Args:
+        option: Option dictionary
+        
+    Returns:
+        datetime object (UTC) for sorting, or datetime.min if invalid/missing
+    """
+    created_at_raw = option.get('created_at')
+    if created_at_raw is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    try:
+        if isinstance(created_at_raw, datetime):
+            dt = created_at_raw
+        elif isinstance(created_at_raw, str):
+            dt = datetime.fromisoformat(created_at_raw.replace('Z', '+00:00'))
+        else:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, AttributeError):
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
 def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
     """
     Format options data into an HTML email, grouped by load.
@@ -146,13 +173,14 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
         
         # Generate HTML for each load group
         for custom_load_id, load_options in loads_dict.items():
+            # Sort options by created_at descending (most recent first)
+            load_options.sort(key=get_timestamp_for_sort, reverse=True)
+            
             # Get load info from first option (all options for same load have same load data)
             first_option = load_options[0]
             load = first_option.get('loads', {})
             origin = load.get('origin', 'N/A') if isinstance(load, dict) else 'N/A'
             destination = load.get('destination', 'N/A') if isinstance(load, dict) else 'N/A'
-            created_at_raw = first_option.get('created_at') if isinstance(first_option, dict) else None
-            created_at = format_timestamp(created_at_raw)
             
             # Build lane string
             lane = f"{origin} → {destination}" if origin != 'N/A' and destination != 'N/A' else 'N/A'
@@ -161,7 +189,6 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
             <div class="load-section">
                 <div class="load-header">
                     Load Number: {custom_load_id}
-                    Created At: {created_at}
                 </div>
                 <div class="load-lane">
                     Lane: {lane}
@@ -173,6 +200,7 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
                             <th>Carrier DOT</th>
                             <th>Offer Amount</th>
                             <th>Phone Number</th>
+                            <th>Option Logged Time</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -183,6 +211,8 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
                 carrier_dot = option.get('carrier_dot', 'N/A') or 'N/A'
                 offered_rate = option.get('offered_rate', 'N/A')
                 phone_number = option.get('phone_number', 'N/A') or 'N/A'
+                created_at_raw = option.get('created_at')
+                option_logged_time = format_timestamp(created_at_raw)
                 
                 # Format rate
                 rate_display = f"${offered_rate:.2f}" if isinstance(offered_rate, (int, float)) else str(offered_rate)
@@ -193,6 +223,7 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
                             <td>{carrier_dot}</td>
                             <td>{rate_display}</td>
                             <td>{phone_number}</td>
+                            <td>{option_logged_time}</td>
                         </tr>
                 """
             
@@ -249,13 +280,14 @@ Total Options: {count}
         
         # Generate text for each load group
         for custom_load_id, load_options in loads_dict.items():
+            # Sort options by created_at descending (most recent first)
+            load_options.sort(key=get_timestamp_for_sort, reverse=True)
+            
             # Get load info from first option (all options for same load have same load data)
             first_option = load_options[0]
             load = first_option.get('loads', {})
             origin = load.get('origin', 'N/A') if isinstance(load, dict) else 'N/A'
             destination = load.get('destination', 'N/A') if isinstance(load, dict) else 'N/A'
-            created_at_raw = first_option.get('created_at') if isinstance(first_option, dict) else None
-            created_at = format_timestamp(created_at_raw)
             
             # Build lane string
             lane = f"{origin} → {destination}" if origin != 'N/A' and destination != 'N/A' else 'N/A'
@@ -263,12 +295,11 @@ Total Options: {count}
             text_body += f"""
 {'='*60}
 LOAD NUMBER: {custom_load_id}
-CREATED AT: {created_at}
 LANE: {lane}
 {'='*60}
 
-Carrier MC        Carrier DOT      Offer Amount     Phone Number
-{'─'*60}
+Carrier MC        Carrier DOT      Offer Amount     Phone Number      Option Logged Time
+{'─'*80}
 """
             
             for option in load_options:
@@ -276,12 +307,14 @@ Carrier MC        Carrier DOT      Offer Amount     Phone Number
                 carrier_dot = option.get('carrier_dot', 'N/A') or 'N/A'
                 offered_rate = option.get('offered_rate', 'N/A')
                 phone_number = option.get('phone_number', 'N/A') or 'N/A'
+                created_at_raw = option.get('created_at')
+                option_logged_time = format_timestamp(created_at_raw)
                 
                 # Format rate
                 rate_display = f"${offered_rate:.2f}" if isinstance(offered_rate, (int, float)) else str(offered_rate)
                 
                 # Format with fixed-width columns
-                text_body += f"{carrier_mc:<16} {carrier_dot:<16} {rate_display:<16} {phone_number}\n"
+                text_body += f"{carrier_mc:<16} {carrier_dot:<16} {rate_display:<16} {phone_number:<20} {option_logged_time}\n"
             
             text_body += "\n"
         
