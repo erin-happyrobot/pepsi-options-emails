@@ -1,11 +1,51 @@
 import os
 import json
 from typing import List, Dict, Any, Optional, Tuple, Union
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from collections import defaultdict
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from botocore.config import Config
+
+
+def format_timestamp(timestamp: Any) -> str:
+    """
+    Format a timestamp (datetime object or ISO string) to a readable string in Central time.
+    
+    Args:
+        timestamp: Can be a datetime object, ISO string, or None (assumed to be in UTC)
+        
+    Returns:
+        Formatted timestamp string in Central time or 'N/A' if invalid
+    """
+    if timestamp is None:
+        return 'N/A'
+    
+    try:
+        # If it's already a datetime object
+        if isinstance(timestamp, datetime):
+            dt = timestamp
+        # If it's a string, parse it
+        elif isinstance(timestamp, str):
+            # Handle ISO format strings (with or without 'Z')
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        else:
+            return 'N/A'
+        
+        # Ensure datetime is timezone-aware (assume UTC if naive)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        
+        # Convert to Central time
+        central_tz = ZoneInfo("America/Chicago")
+        dt_central = dt.astimezone(central_tz)
+        
+        # Format as readable date/time in Central time
+        return dt_central.strftime('%Y-%m-%d %H:%M:%S Central')
+    except (ValueError, AttributeError) as e:
+        print(f"Error formatting timestamp {timestamp}: {e}")
+        return 'N/A'
 
 
 def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
@@ -111,6 +151,8 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
             load = first_option.get('loads', {})
             origin = load.get('origin', 'N/A') if isinstance(load, dict) else 'N/A'
             destination = load.get('destination', 'N/A') if isinstance(load, dict) else 'N/A'
+            created_at_raw = first_option.get('created_at') if isinstance(first_option, dict) else None
+            created_at = format_timestamp(created_at_raw)
             
             # Build lane string
             lane = f"{origin} → {destination}" if origin != 'N/A' and destination != 'N/A' else 'N/A'
@@ -119,6 +161,7 @@ def format_options_email(options: List[Dict[str, Any]]) -> Tuple[str, str]:
             <div class="load-section">
                 <div class="load-header">
                     Load Number: {custom_load_id}
+                    Created At: {created_at}
                 </div>
                 <div class="load-lane">
                     Lane: {lane}
@@ -211,6 +254,8 @@ Total Options: {count}
             load = first_option.get('loads', {})
             origin = load.get('origin', 'N/A') if isinstance(load, dict) else 'N/A'
             destination = load.get('destination', 'N/A') if isinstance(load, dict) else 'N/A'
+            created_at_raw = first_option.get('created_at') if isinstance(first_option, dict) else None
+            created_at = format_timestamp(created_at_raw)
             
             # Build lane string
             lane = f"{origin} → {destination}" if origin != 'N/A' and destination != 'N/A' else 'N/A'
@@ -218,6 +263,7 @@ Total Options: {count}
             text_body += f"""
 {'='*60}
 LOAD NUMBER: {custom_load_id}
+CREATED AT: {created_at}
 LANE: {lane}
 {'='*60}
 
